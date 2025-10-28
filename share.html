@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Поделиться достижением • SmokeFree</title>
   <style>
-    :root { --bg:#0b0c10; --fg:#fff; --glass:rgba(20,20,24,.9); --accent:#38bdf8; --ok:#22c55e; --amber:#f59e0b; }
-    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-    .wrap{max-width:480px;margin:0 auto;padding:16px;text-align:center}
-    .hint{background:#1f2937;border-radius:12px;padding:10px 12px;margin:12px 16px;font-size:14px;line-height:1.35}
-    .hidden{display:none}.muted{opacity:.8}
-    img{width:100%;height:auto;border-radius:16px;display:block;background:#111;margin-top:10px}
-    .bar{position:fixed;left:0;right:0;bottom:0;background:var(--glass);backdrop-filter:blur(6px);padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap}
-    .btn{flex:1;min-width:150px;padding:12px 14px;border:0;border-radius:12px;font-size:15px;cursor:pointer}
+    :root { --bg:#0b0c10; --fg:#fff; --glass:rgba(20,20,24,.9); --accent:#38bdf8; }
+    body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .wrap { max-width:480px; margin:0 auto; padding:16px; text-align:center; }
+    .hint { background:#1f2937; border-radius:12px; padding:10px 12px; margin:12px 16px; font-size:14px; line-height:1.35; }
+    .hidden{display:none} .muted{opacity:.8}
+    img { width:100%; height:auto; border-radius:16px; display:block; background:#111; margin-top:10px; }
+    .bar { position:fixed; left:0; right:0; bottom:0; background:var(--glass); backdrop-filter:blur(6px); padding:12px 16px; display:flex; gap:10px; }
+    .btn { flex:1; padding:14px 16px; border:0; border-radius:12px; font-size:16px; cursor:pointer; }
     .btn:hover{opacity:.92}
   </style>
 </head>
@@ -30,19 +30,13 @@
   </div>
 
   <div class="bar">
-    <button id="share"   class="btn" style="background:var(--accent);color:#000;">📤 Сторис 9:16</button>
-    <button id="share45" class="btn" style="background:var(--ok);color:#000;">📤 Пост 4:5</button>
-    <button id="share11" class="btn" style="background:var(--amber);color:#000;">📤 Квадрат 1:1</button>
-    <button id="save"    class="btn" style="background:#374151;color:#fff;">⬇️ Скачать</button>
+    <button id="share" class="btn" style="background:var(--accent);color:#000;">📤 Отправить</button>
+    <button id="save"  class="btn" style="background:#374151;color:#fff;">⬇️ Скачать</button>
   </div>
 
   <script>
-    // ===== utils =====
-    const log = (...a)=>{ try{ console.log('[SF]',...a);}catch{} };
-    window.onerror = (m,s,l,c,e)=>{ try{ console.error('[SF-ERR]',m,s,l,c,e);}catch{} };
-
+    // --- параметры и состояние ---
     const qs = new URLSearchParams(location.search);
-    // Иногда URL оказывается дважды закодирован — аккуратно декодируем
     const rawImg = qs.get('img') || '';
     let imgUrl = rawImg;
     try { imgUrl = decodeURIComponent(rawImg); } catch {}
@@ -53,113 +47,53 @@
     const msgEl  = document.getElementById('msg');
     const tgHint = document.getElementById('tg-hint');
 
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes('telegram')) tgHint.classList.remove('hidden');
-
-    // Надёжная загрузка изображения через <img>, без createImageBitmap
-    function preloadImage(url) {
-      return new Promise((resolve, reject) => {
-        const im = new Image();
-        // CORS нужен для дальнейших операций с canvas/share файла
-        im.crossOrigin = 'anonymous';
-        im.onload = () => resolve(im);
-        im.onerror = (e) => reject(e);
-        im.src = url;
-      });
+    // показать подсказку для Telegram webview
+    if (navigator.userAgent.toLowerCase().includes('telegram')) {
+      tgHint.classList.remove('hidden');
     }
 
+    // показать изображение
     (async () => {
       if (!imgUrl) {
         msgEl.textContent = 'Нет параметра ?img=. Добавьте ссылку на PNG/JPG: ?img=https://...';
         return;
       }
-      try {
-        // Показать картинку на странице
-        imgEl.src = imgUrl;
-        // Параллельно прогреем её для канваса (если CORS позволит)
-        await preloadImage(imgUrl).catch(()=>{ /* не критично */ });
-        msgEl.textContent = '';
-      } catch (e) {
-        log('preview error', e);
-        msgEl.textContent = 'Не удалось загрузить изображение. Проверьте ссылку ?img= и HTTPS-доступ.';
-      }
+      imgEl.src = imgUrl;
     })();
 
-    // ===== шэр сторис 9:16 (сам исходник) =====
+    // --- поделиться изображением как ФАЙЛ (если поддерживается) ---
     async function shareImageFile() {
       try {
-        const probeOk = !!(navigator.canShare && navigator.canShare({ files: [new File([''],'p.png',{type:'image/png'})] }));
-        if (probeOk && imgUrl) {
+        const canFiles = !!(navigator.canShare && navigator.canShare({
+          files: [new File([''],'probe.png',{type:'image/png'})]
+        }));
+
+        if (canFiles && imgUrl) {
           const res = await fetch(imgUrl, { mode:'cors', cache:'no-store' });
           if (!res.ok) throw new Error('fetch failed');
           const blob = await res.blob();
           const mime = blob.type || 'image/png';
           const ext  = (mime.split('/')[1] || 'png').split('+')[0];
           const file = new File([blob], `smokefree.${ext}`, { type:mime });
+
           await navigator.share({ files:[file], title, text });
           return;
         }
-        if (navigator.share) { await navigator.share({ title, text, url:'https://t.me/smokefreeclubbot' }); return; }
-        if (imgUrl) window.open(imgUrl, '_blank');
-      } catch (e) {
-        log('share 9:16 error', e);
-        if (imgUrl) window.open(imgUrl, '_blank');
-      }
-    }
 
-    // ===== генерация форматов 4:5 и 1:1 без обрезки =====
-    async function renderAndShare(targetW, targetH, filename) {
-      if (!imgUrl) return;
-      try {
-        const res = await fetch(imgUrl, { mode:'cors', cache:'no-store' });
-        if (!res.ok) throw new Error('fetch failed');
-        const blob = await res.blob();
-
-        // грузим через <img>, так кроссбраузернее
-        const srcImg = await preloadImage(URL.createObjectURL(blob));
-
-        const pad = Math.round(targetW * 0.06);
-        const c = document.createElement('canvas'); c.width = targetW; c.height = targetH;
-        const ctx = c.getContext('2d');
-
-        // фон cover + затемнение
-        const scaleCover = Math.max(targetW / srcImg.naturalWidth, targetH / srcImg.naturalHeight);
-        const bw = Math.round(srcImg.naturalWidth * scaleCover);
-        const bh = Math.round(srcImg.naturalHeight * scaleCover);
-        const bx = Math.round((targetW - bw) / 2);
-        const by = Math.round((targetH - bh) / 2);
-        ctx.drawImage(srcImg, bx, by, bw, bh);
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(0, 0, targetW, targetH);
-
-        // карточка целиком «вписать» с полями
-        const availW = targetW - pad*2, availH = targetH - pad*2;
-        const scaleFit = Math.min(availW / srcImg.naturalWidth, availH / srcImg.naturalHeight);
-        const iw = Math.round(srcImg.naturalWidth * scaleFit);
-        const ih = Math.round(srcImg.naturalHeight * scaleFit);
-        const ix = Math.round((targetW - iw)/2), iy = Math.round((targetH - ih)/2);
-        ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = Math.round(targetW*0.02);
-        ctx.drawImage(srcImg, ix, iy, iw, ih); ctx.shadowBlur = 0;
-
-        const outBlob = await new Promise(r => c.toBlob(r, 'image/png', 0.95));
-        const file = new File([outBlob], filename, { type:'image/png' });
-
-        if (navigator.canShare && navigator.canShare({ files:[file] })) {
-          await navigator.share({ files:[file], title, text });
-        } else if (navigator.share) {
+        // fallback: обычный share с ссылкой на бота
+        if (navigator.share) {
           await navigator.share({ title, text, url:'https://t.me/smokefreeclubbot' });
-        } else {
-          const url = URL.createObjectURL(outBlob);
-          const a = document.createElement('a'); a.href = url; a.download = filename;
-          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          return;
         }
+
+        // самый простой fallback: открыть само изображение
+        if (imgUrl) window.open(imgUrl, '_blank');
       } catch (e) {
-        log('render/share alt format error', e);
-        alert('Не удалось подготовить формат. Попробуйте «Открыть в браузере» или используйте кнопку «Скачать».');
+        if (imgUrl) window.open(imgUrl, '_blank');
       }
     }
 
-    // ===== гарантированное скачивание исходника =====
+    // --- гарантированное скачивание файла ---
     async function downloadImage() {
       if (!imgUrl) return;
       try {
@@ -167,7 +101,8 @@
         if (!res.ok) throw new Error('download failed');
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'smokefree_result.png'; a.style.display='none';
+        const a = document.createElement('a');
+        a.href = url; a.download = 'smokefree_result.png';
         document.body.appendChild(a); a.click();
         setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 800);
       } catch (e) {
@@ -175,11 +110,9 @@
       }
     }
 
-    // ===== кнопки =====
-    document.getElementById('share')  .addEventListener('click', shareImageFile);                              // 9:16
-    document.getElementById('share45').addEventListener('click', () => renderAndShare(1080,1350,'smokefree_1080x1350.png')); // 4:5
-    document.getElementById('share11').addEventListener('click', () => renderAndShare(1080,1080,'smokefree_1080x1080.png')); // 1:1
-    document.getElementById('save')   .addEventListener('click', downloadImage);
+    // --- обработчики ---
+    document.getElementById('share').addEventListener('click', shareImageFile);
+    document.getElementById('save') .addEventListener('click',  downloadImage);
   </script>
 </body>
 </html>
