@@ -1,43 +1,106 @@
-<script>
-  const params = new URLSearchParams(location.search);
-  const imgUrl = params.get('img');
-  const img = document.getElementById('img');
-  img.src = imgUrl;
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Поделиться достижением • SmokeFree</title>
+  <style>
+    :root { --bg:#0b0c10; --fg:#fff; --glass:rgba(20,20,24,.9); }
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    .wrap{max-width:480px;margin:0 auto;padding:16px}
+    .hint{background:#1f2937;border-radius:12px;padding:10px 12px;margin:12px 16px;font-size:14px;line-height:1.35}
+    img{width:100%;height:auto;border-radius:16px;display:block;background:#111}
+    .bar{position:fixed;left:0;right:0;bottom:0;background:var(--glass);backdrop-filter:blur(6px);padding:12px 16px;display:flex;gap:10px}
+    .btn{flex:1;padding:14px 16px;border:0;border-radius:12px;font-size:16px}
+    .muted{opacity:.8}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div id="tg-hint" class="hint hidden">Если страница открыта внутри Telegram, нажмите «⋯» → <b>Открыть в браузере</b> (Safari/Chrome), чтобы заработал системный «Поделиться».</div>
 
-  const title = 'Мой результат SmokeFree';
-  const text  = 'Посмотрите, как я двигаюсь к жизни без сигарет! 🚭';
+  <div class="wrap">
+    <img id="img" alt="Share Card">
+    <div id="msg" class="muted" style="margin-top:10px;font-size:14px"></div>
+  </div>
 
-  async function shareImageFile() {
-    try {
-      // Проверим поддержку шаринга файлов
-      const fileProbe = new File([''], 'probe.png', { type: 'image/png' });
-      const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [fileProbe] }));
+  <div class="bar">
+    <button id="share" class="btn">📤 Поделиться</button>
+    <button id="save" class="btn">⬇️ Скачать</button>
+  </div>
 
-      if (canShareFiles) {
-        // Скачиваем картинку как Blob (нужен CORS — у Cloudinary он разрешён)
-        const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
-        if (!res.ok) throw new Error('fetch failed');
-        const blob = await res.blob();
-        const ext = (blob.type && blob.type.split('/')[1]) || 'png';
-        const file = new File([blob], `smokefree.${ext}`, { type: blob.type || 'image/png' });
+  <script>
+    const params = new URLSearchParams(location.search);
+    const imgUrl = params.get('img') || '';
+    const imgEl  = document.getElementById('img');
+    const msgEl  = document.getElementById('msg');
+    const tgHint = document.getElementById('tg-hint');
 
-        await navigator.share({ files: [file], title, text });
-        return;
-      }
+    // Подсказка для Telegram-вьюера
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('telegram')) tgHint.classList.remove('hidden');
 
-      // Если шаринг файлов недоступен, пробуем обычный share c URL
-      if (navigator.share) {
-        await navigator.share({ title, text, url: location.href });
-        return;
-      }
-
-      // Самый простой фолбэк — открыть саму картинку
-      window.open(imgUrl, '_blank');
-    } catch (e) {
-      // Если пользователь отменил шаринг или произошла ошибка — откроем картинку
-      window.open(imgUrl, '_blank');
+    // Показать изображение или сообщение об ошибке
+    if (!imgUrl) {
+      msgEl.textContent = 'Нет параметра ?img=. Добавьте ссылку на PNG/JPG: ?img=https://...';
+    } else {
+      imgEl.src = imgUrl;
+      msgEl.textContent = 'Если изображение не загрузилось — убедитесь, что ссылка публичная (https) и доступна из браузера.';
     }
-  }
 
-  document.getElementById('share').addEventListener('click', shareImageFile);
-</script>
+    const title = 'Мой результат SmokeFree';
+    const text  = 'Посмотрите, как я двигаюсь к жизни без сигарет! 🚭';
+
+    async function shareImageFile() {
+      try {
+        // Проверяем поддержку шаринга файлов
+        const probe = new File([''], 'probe.png', { type: 'image/png' });
+        const canFiles = !!(navigator.canShare && navigator.canShare({ files: [probe] }));
+
+        if (canFiles && imgUrl) {
+          // Скачиваем картинку как Blob (Cloudinary и многие CDN отдают CORS нормально)
+          const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
+          if (!res.ok) throw new Error('fetch failed');
+          const blob = await res.blob();
+          const mime = blob.type || 'image/png';
+          const ext  = (mime.split('/')[1] || 'png').split('+')[0];
+          const file = new File([blob], `smokefree.${ext}`, { type: mime });
+
+          await navigator.share({ files: [file], title, text });
+          return;
+        }
+
+        // Фолбэк: обычный share ссылки (работает почти везде)
+        if (navigator.share) {
+          await navigator.share({ title, text, url: location.href });
+          return;
+        }
+
+        // Самый простой фолбэк
+        if (imgUrl) window.open(imgUrl, '_blank');
+      } catch (e) {
+        if (imgUrl) window.open(imgUrl, '_blank');
+      }
+    }
+
+    async function downloadImage() {
+      if (!imgUrl) return;
+      try {
+        const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'smokefree.png';
+        document.body.appendChild(a); a.click();
+        a.remove(); URL.revokeObjectURL(url);
+      } catch(e) {
+        // Если CORS блочит — просто открываем ссылку
+        window.open(imgUrl, '_blank');
+      }
+    }
+
+    document.getElementById('share').addEventListener('click', shareImageFile);
+    document.getElementById('save').addEventListener('click', downloadImage);
+  </script>
+</body>
+</html>
