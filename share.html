@@ -5,28 +5,86 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Поделиться достижением • SmokeFree</title>
   <style>
-    :root { --bg:#0b0c10; --fg:#fff; --glass:rgba(20,20,24,.9); }
-    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-    .wrap{max-width:480px;margin:0 auto;padding:16px}
-    .hint{background:#1f2937;border-radius:12px;padding:10px 12px;margin:12px 16px;font-size:14px;line-height:1.35}
-    img{width:100%;height:auto;border-radius:16px;display:block;background:#111}
-    .bar{position:fixed;left:0;right:0;bottom:0;background:var(--glass);backdrop-filter:blur(6px);padding:12px 16px;display:flex;gap:10px}
-    .btn{flex:1;padding:14px 16px;border:0;border-radius:12px;font-size:16px}
-    .muted{opacity:.8}
-    .hidden{display:none}
+    :root {
+      --bg:#0b0c10;
+      --fg:#fff;
+      --glass:rgba(20,20,24,.9);
+      --accent:#38bdf8;
+    }
+    body {
+      margin:0;
+      background:var(--bg);
+      color:var(--fg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    .wrap {
+      max-width:480px;
+      margin:0 auto;
+      padding:16px;
+      text-align:center;
+    }
+    img {
+      width:100%;
+      height:auto;
+      border-radius:16px;
+      display:block;
+      background:#111;
+      margin-top:10px;
+    }
+    .bar {
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      background:var(--glass);
+      backdrop-filter:blur(6px);
+      padding:12px 16px;
+      display:flex;
+      gap:10px;
+    }
+    .btn {
+      flex:1;
+      padding:14px 16px;
+      border:0;
+      border-radius:12px;
+      font-size:16px;
+      cursor:pointer;
+    }
+    .btn:hover {
+      opacity:.9;
+    }
+    .hint {
+      background:#1f2937;
+      border-radius:12px;
+      padding:10px 12px;
+      margin:12px 16px;
+      font-size:14px;
+      line-height:1.35;
+    }
+    .hidden {display:none}
+    .muted {opacity:.8}
   </style>
 </head>
 <body>
-  <div id="tg-hint" class="hint hidden">Если страница открыта внутри Telegram, нажмите «⋯» → <b>Открыть в браузере</b> (Safari/Chrome), чтобы заработал системный «Поделиться».</div>
+
+  <div id="tg-hint" class="hint hidden">
+    Если страница открыта внутри Telegram — нажмите «⋯» → 
+    <b>Открыть в браузере</b> (Safari/Chrome), чтобы заработала кнопка «Поделиться».
+  </div>
 
   <div class="wrap">
+    <p style="font-weight:700;font-size:20px;margin:6px 0;">💠 Мой результат без сигарет!</p>
+    <p style="font-weight:600;opacity:.9;margin:0 0 12px;">
+      Присоединяйся — <span style="color:var(--accent);">@SmokeFreeclubBot</span>
+    </p>
+
     <img id="img" alt="Share Card">
     <div id="msg" class="muted" style="margin-top:10px;font-size:14px"></div>
   </div>
 
   <div class="bar">
-    <button id="share" class="btn">📤 Поделиться</button>
-    <button id="save" class="btn">⬇️ Скачать</button>
+    <button id="share" class="btn" style="background:var(--accent);color:#000;">📤 Поделиться</button>
+    <button id="save" class="btn" style="background:#374151;color:#fff;">⬇️ Скачать</button>
   </div>
 
   <script>
@@ -36,16 +94,13 @@
     const msgEl  = document.getElementById('msg');
     const tgHint = document.getElementById('tg-hint');
 
-    // Подсказка для Telegram-вьюера
     const ua = navigator.userAgent.toLowerCase();
     if (ua.includes('telegram')) tgHint.classList.remove('hidden');
 
-    // Показать изображение или сообщение об ошибке
     if (!imgUrl) {
       msgEl.textContent = 'Нет параметра ?img=. Добавьте ссылку на PNG/JPG: ?img=https://...';
     } else {
       imgEl.src = imgUrl;
-      msgEl.textContent = 'Если изображение не загрузилось — убедитесь, что ссылка публичная (https) и доступна из браузера.';
     }
 
     const title = '💠 Мой результат без сигарет!';
@@ -53,12 +108,10 @@
 
     async function shareImageFile() {
       try {
-        // Проверяем поддержку шаринга файлов
         const probe = new File([''], 'probe.png', { type: 'image/png' });
         const canFiles = !!(navigator.canShare && navigator.canShare({ files: [probe] }));
 
         if (canFiles && imgUrl) {
-          // Скачиваем картинку как Blob (Cloudinary и многие CDN отдают CORS нормально)
           const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
           if (!res.ok) throw new Error('fetch failed');
           const blob = await res.blob();
@@ -70,13 +123,11 @@
           return;
         }
 
-        // Фолбэк: обычный share ссылки (работает почти везде)
         if (navigator.share) {
-          await navigator.share({ title, text, url: location.href });
+          await navigator.share({ title, text, url: 'https://t.me/smokefreeclubbot' });
           return;
         }
 
-        // Самый простой фолбэк
         if (imgUrl) window.open(imgUrl, '_blank');
       } catch (e) {
         if (imgUrl) window.open(imgUrl, '_blank');
@@ -87,15 +138,23 @@
       if (!imgUrl) return;
       try {
         const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
+        if (!res.ok) throw new Error('download failed');
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'smokefree.png';
-        document.body.appendChild(a); a.click();
-        a.remove(); URL.revokeObjectURL(url);
-      } catch(e) {
-        // Если CORS блочит — просто открываем ссылку
-        window.open(imgUrl, '_blank');
+
+        const fileURL = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = fileURL;
+        link.download = 'smokefree_result.png';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(fileURL);
+        }, 1000);
+      } catch (e) {
+        alert('Чтобы сохранить изображение, удерживайте его и выберите «Сохранить» 📥');
       }
     }
 
@@ -104,4 +163,3 @@
   </script>
 </body>
 </html>
-
