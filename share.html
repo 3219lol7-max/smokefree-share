@@ -10,66 +10,34 @@
       --fg:#fff;
       --glass:rgba(20,20,24,.9);
       --accent:#38bdf8;
+      --ok:#22c55e;
+      --amber:#f59e0b;
     }
     body {
-      margin:0;
-      background:var(--bg);
-      color:var(--fg);
+      margin:0; background:var(--bg); color:var(--fg);
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     }
-    .wrap {
-      max-width:480px;
-      margin:0 auto;
-      padding:16px;
-      text-align:center;
-    }
-    img {
-      width:100%;
-      height:auto;
-      border-radius:16px;
-      display:block;
-      background:#111;
-      margin-top:10px;
-    }
+    .wrap { max-width:480px; margin:0 auto; padding:16px; text-align:center; }
+    .hint { background:#1f2937; border-radius:12px; padding:10px 12px; margin:12px 16px; font-size:14px; line-height:1.35; }
+    .hidden { display:none; }
+    .muted { opacity:.8; }
+    img { width:100%; height:auto; border-radius:16px; display:block; background:#111; margin-top:10px; }
     .bar {
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      background:var(--glass);
-      backdrop-filter:blur(6px);
-      padding:12px 16px;
-      display:flex;
-      gap:10px;
+      position:fixed; left:0; right:0; bottom:0;
+      background:var(--glass); backdrop-filter:blur(6px);
+      padding:12px 16px; display:flex; gap:10px; flex-wrap:wrap;
     }
     .btn {
-      flex:1;
-      padding:14px 16px;
-      border:0;
-      border-radius:12px;
-      font-size:16px;
-      cursor:pointer;
+      flex:1; min-width:150px; padding:12px 14px;
+      border:0; border-radius:12px; font-size:15px; cursor:pointer;
     }
-    .btn:hover {
-      opacity:.9;
-    }
-    .hint {
-      background:#1f2937;
-      border-radius:12px;
-      padding:10px 12px;
-      margin:12px 16px;
-      font-size:14px;
-      line-height:1.35;
-    }
-    .hidden {display:none}
-    .muted {opacity:.8}
+    .btn:hover { opacity:.92; }
   </style>
 </head>
 <body>
 
   <div id="tg-hint" class="hint hidden">
-    Если страница открыта внутри Telegram — нажмите «⋯» → 
-    <b>Открыть в браузере</b> (Safari/Chrome), чтобы заработала кнопка «Поделиться».
+    Если страница открыта внутри Telegram — нажмите «⋯» → <b>Открыть в браузере</b> (Safari/Chrome), чтобы заработала кнопка «Поделиться».
   </div>
 
   <div class="wrap">
@@ -83,11 +51,14 @@
   </div>
 
   <div class="bar">
-    <button id="share" class="btn" style="background:var(--accent);color:#000;">📤 Поделиться</button>
-    <button id="save" class="btn" style="background:#374151;color:#fff;">⬇️ Скачать</button>
+    <button id="share"   class="btn" style="background:var(--accent);color:#000;">📤 Сторис 9:16</button>
+    <button id="share45" class="btn" style="background:var(--ok);color:#000;">📤 Пост 4:5</button>
+    <button id="share11" class="btn" style="background:var(--amber);color:#000;">📤 Квадрат 1:1</button>
+    <button id="save"    class="btn" style="background:#374151;color:#fff;">⬇️ Скачать</button>
   </div>
 
   <script>
+    // ----- базовые переменные -----
     const params = new URLSearchParams(location.search);
     const imgUrl = params.get('img') || '';
     const imgEl  = document.getElementById('img');
@@ -106,6 +77,7 @@
     const title = '💠 Мой результат без сигарет!';
     const text  = 'Присоединяйся — @SmokeFreeclubBot';
 
+    // ----- шэр исходника 9:16 как файл -----
     async function shareImageFile() {
       try {
         const probe = new File([''], 'probe.png', { type: 'image/png' });
@@ -122,44 +94,4 @@
           await navigator.share({ files: [file], title, text });
           return;
         }
-
-        if (navigator.share) {
-          await navigator.share({ title, text, url: 'https://t.me/smokefreeclubbot' });
-          return;
-        }
-
-        if (imgUrl) window.open(imgUrl, '_blank');
-      } catch (e) {
-        if (imgUrl) window.open(imgUrl, '_blank');
-      }
-    }
-
-    async function downloadImage() {
-      if (!imgUrl) return;
-      try {
-        const res = await fetch(imgUrl, { mode: 'cors', cache: 'no-store' });
-        if (!res.ok) throw new Error('download failed');
-        const blob = await res.blob();
-
-        const fileURL = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = fileURL;
-        link.download = 'smokefree_result.png';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(fileURL);
-        }, 1000);
-      } catch (e) {
-        alert('Чтобы сохранить изображение, удерживайте его и выберите «Сохранить» 📥');
-      }
-    }
-
-    document.getElementById('share').addEventListener('click', shareImageFile);
-    document.getElementById('save').addEventListener('click', downloadImage);
-  </script>
-</body>
-</html>
+        if (naviga
